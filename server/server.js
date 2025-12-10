@@ -158,21 +158,17 @@ app.get('/api/download-resume', async (req, res) => {
 let otpStore = new Map(); // Store { email: { code, expires } }
 
 app.post('/api/send-otp', async (req, res) => {
-    const { email } = req.body; // Client just says "send to admin" (or specific email)
+    const { email } = req.body;
+    console.log("Requesting OTP for:", email || "default admin");
 
-    // Generate Server-Side
     const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // 5 mins
-
-    // Store (Key is "admin" or email if provided)
+    const expires = Date.now() + 5 * 60 * 1000;
     const key = email || 'admin';
     otpStore.set(key, { code: otp_code, expires });
 
-    // Check if credentials exist
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.error("Missing SMTP Credentials");
-        // console.log("MOCK SMTP: OTP is", otp_code); // Disabled for production security
-        return res.json({ success: true, message: 'Mock sent (check server logs)' });
+        console.error("Missing SMTP Credentials in env");
+        return res.status(500).json({ success: false, message: 'Server missing email config' });
     }
 
     const transporter = nodemailer.createTransport({
@@ -190,24 +186,29 @@ app.post('/api/send-otp', async (req, res) => {
         html: `
             <div style="font-family: Arial, sans-serif; color: #333;">
                 <p>Hello Boss,</p>
-                <p>Analytica is here...</p>
-                <br/>
-                <p>To authenticate, please use the following One Time Password (OTP):</p>
-                <h1 style="font-size: 32px; font-weight: bold; margin: 20px 0;">${otp_code}</h1>
-                <p>This OTP will be valid for 5 minutes.</p>
-                <p>Do not share this OTP with anyone.</p>
-                <br/>
-                <p>Thanks for Verifying!</p>
+                <p>To authenticate, please use this OTP:</p>
+                <h1 style="font-size: 32px; font-weight: bold;">${otp_code}</h1>
+                <p>Valid for 5 minutes.</p>
             </div>
         `
     };
 
     try {
+        console.log("Attempting to send email...");
+        await transporter.verify(); // Verify connection first
+        console.log("SMTP Connection Verified");
+        
         await transporter.sendMail(mailOptions);
+        console.log("Email sent successfully");
         res.json({ success: true, message: 'Email sent' });
     } catch (error) {
-        console.error("Email error:", error);
-        res.status(500).json({ error: 'Failed to send email' });
+        console.error("Detailed Email Error:", error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to send email', 
+            error: error.message,
+            code: error.code 
+        });
     }
 });
 
