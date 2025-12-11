@@ -198,8 +198,35 @@ const SystemSettings = () => {
                                 <p className="text-sm text-gray-500">Manage biometric authenticators (TouchID, FaceID).</p>
                             </div>
                             <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold">
-                                Active
+                                {keys.length} Active
                             </div>
+                        </div>
+
+                        {/* Passkey List */}
+                        <div className="space-y-3 mb-6">
+                            {keys.map((key, idx) => (
+                                <div key={key.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                            <Shield className="w-5 h-5 text-gray-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900 text-sm">{key.name || `Passkey ${idx + 1}`}</p>
+                                            <p className="text-xs text-gray-500 font-mono">ID: {key.id.substring(0, 8)}...</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setKeyToDelete(key.id); setPinVal(''); }}
+                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Remove Device"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {keys.length === 0 && (
+                                <p className="text-sm text-gray-400 italic text-center py-2">No active passkeys found.</p>
+                            )}
                         </div>
 
                         <button
