@@ -17,6 +17,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
     const [countdown, setCountdown] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Security Token for Registration
+    const [regToken, setRegToken] = useState<string | null>(null);
+
     // Math State
     const [mathQ, setMathQ] = useState({ q: '', a: 0 });
 
@@ -66,7 +69,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
         setError('');
         try {
             // 1. Get Challenge
-            const resp = await fetch('/api/auth/register-challenge', { method: 'POST' });
+            const headers: any = {};
+            if (regToken) {
+                headers['Authorization'] = `Bearer ${regToken}`;
+            }
+
+            const resp = await fetch('/api/auth/register-challenge', {
+                method: 'POST',
+                headers
+            });
+
+            if (resp.status === 401) {
+                throw new Error("Session expired. Please re-enter PIN.");
+            }
+
             const options = await resp.json();
 
             // 2. Browser Native Prompt
@@ -162,6 +178,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
                     setStep(2);
                     setInputVal('');
                     setError('');
+                    // Store token for registration
+                    if (data.registrationToken) {
+                        setRegToken(data.registrationToken);
+                    }
                 } else {
                     handleFail();
                 }
