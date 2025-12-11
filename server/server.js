@@ -375,22 +375,22 @@ app.post('/api/auth/login-verify', async (req, res) => {
 
     let verification;
     try {
-        verification = await verifyAuthenticationResponse(verifyOptions);
-    } catch (error) {
-        console.error("Login Verify Error (First Attempt):", error.message);
-        // Fallback: try passing as 'credential' if library version mismatch
         try {
+            verification = await verifyAuthenticationResponse(verifyOptions);
+        } catch (error) {
+            console.error("Login Verify Error (First Attempt):", error.message);
+            // Fallback: try passing as 'credential' if library version mismatch
             verification = await verifyAuthenticationResponse({
                 ...verifyOptions,
                 credential: authenticatorObj
             });
-        } catch (e2) {
-            throw error; // Throw original
         }
+    } catch (finalError) {
+        console.error("Final Login Verify Error:", finalError);
+        return res.status(400).json({ error: finalError.message });
     }
 
-
-    if (verification.verified) {
+    if (verification && verification.verified) {
         // Update counter
         passkey.counter = verification.authenticationInfo.newCounter;
         await writeDb(data);
@@ -398,7 +398,7 @@ app.post('/api/auth/login-verify', async (req, res) => {
         challengeStore.delete('admin-user');
         res.json({ success: true });
     } else {
-        res.status(400).json({ success: false });
+        res.status(400).json({ success: false, error: 'Verification failed' });
     }
 });
 // --- PIN Verification ---
