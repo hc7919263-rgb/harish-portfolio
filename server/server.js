@@ -169,6 +169,9 @@ const rpName = 'Harish-Portfolio';
 const rpID = 'harish-portfolio-3fqm.onrender.com'; // Change to actual domain or 'localhost' for dev
 const origin = ['https://harish-portfolio-3fqm.onrender.com', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
 
+// Enable Trust Proxy for correct hostname behind Render LB
+app.enable('trust proxy');
+
 // 1. REGISTER: Generate Challenge
 app.post('/api/auth/register-challenge', async (req, res) => {
     // SECURITY: Only allow registration if user has verified PIN (Gatekeeper)
@@ -179,11 +182,13 @@ app.post('/api/auth/register-challenge', async (req, res) => {
     // const data = await readDb();
     // const existingPasskeys = data.adminPasskeys || [];
 
+    // Dynamic RP ID based on request
+    const rpID = req.hostname;
+    console.log("Registering with RP ID:", rpID);
+
     const options = await generateRegistrationOptions({
         rpName,
-        rpID: 'localhost', // FIX: Needs to vary based on environment!
-        // We will detect hostname from request for flexibility
-        // rpID: req.hostname, 
+        rpID,
         userID: "admin-user-id", // Single user
         userName: "harish@admin",
         // excludeCredentials: existingPasskeys.map(key => ({
@@ -208,6 +213,8 @@ app.post('/api/auth/register-verify', async (req, res) => {
     const { body } = req;
     const challenge = challengeStore.get('admin-user-id');
 
+    const rpID = req.hostname;
+
     if (!challenge) return res.status(400).json({ error: 'No challenge found' });
 
     let verification;
@@ -216,7 +223,7 @@ app.post('/api/auth/register-verify', async (req, res) => {
             response: body,
             expectedChallenge: challenge,
             expectedOrigin: origin,
-            expectedRPID: ['localhost', 'harish-portfolio-3fqm.onrender.com'], // Flexible RP ID
+            expectedRPID: [rpID, 'localhost'], // Allow current host or localhost
         });
     } catch (error) {
         console.error("WebAuthn Verification Failed:", error);
