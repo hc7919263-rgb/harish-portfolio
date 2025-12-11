@@ -198,43 +198,13 @@ app.post('/api/send-otp', async (req, res) => {
     const key = email || 'admin';
     otpStore.set(key, { code: otpCode, expires });
 
-    const mailOptions = {
-        from: `"Analytica" <${process.env.SMTP_USER}>`,
-        to: email || process.env.SMTP_USER,
-        subject: 'OTP for Admin - panel authentication',
-        html: `
-            <div style="font-family: 'Brush Script MT', cursive, Arial, sans-serif; color: #333; padding: 20px;">
-                <p style="font-size: 18px;">Hello Boss,</p>
-                <p style="font-size: 18px;">Analytica is here...</p>
-                <br/>
-                <p style="font-size: 16px; font-family: Arial, sans-serif;">To authenticate, please use the following One Time Password (OTP):</p>
-                <h1 style="font-size: 48px; font-weight: bold; margin: 20px 0; font-family: 'Brush Script MT', cursive;">${otpCode}</h1>
-                <p style="font-size: 14px; font-family: Arial, sans-serif;">This OTP will be valid for 5 minutes.</p>
-                <p style="font-size: 14px; font-family: Arial, sans-serif;">Do not share this OTP with anyone.</p>
-                <br/>
-                <p style="font-size: 18px;">Thanks for Verifying!</p>
-            </div>
-        `
-    };
-
-    try {
-        console.log("Sending email...");
-        // Send mail asynchronously - don't block response too long if possible, 
-        // but awaiting guarantees delivery confirmation to client. 
-        // With pooled connection, this should be fast.
-        await transporter.sendMail(mailOptions);
-        console.log("Email sent successfully");
-        res.json({ success: true, message: 'Email sent' });
-    } catch (error) {
-        console.error("Detailed Email Error:", error);
-        // Return clearer error to client
-        res.status(500).json({
-            success: false,
-            message: `Email failed: ${error.message}`,
-            error: error.message,
-            code: error.code || 'UNKNOWN'
-        });
-    }
+    // RETURN OTP to client so Client can send the email via EmailJS
+    // This bypasses server-side SMTP blocking issues.
+    res.json({
+        success: true,
+        message: 'OTP Generated',
+        otpCode: otpCode // <--- Sending to client to email it
+    });
 });
 
 app.post('/api/verify-otp', (req, res) => {

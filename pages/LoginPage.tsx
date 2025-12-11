@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Lock, Shield, AlertTriangle, Phone, Mail, CheckCircle, Smartphone, Calculator } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 interface LoginPageProps {
     onLoginSuccess: () => void;
