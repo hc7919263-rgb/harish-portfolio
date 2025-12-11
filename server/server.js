@@ -458,7 +458,7 @@ app.post('/api/verify-pin', (req, res) => {
     if (pin === CORRECT_PIN) {
         // Generate a temporary registration token (valid for 5 mins)
         // This is required to access /api/auth/register-challenge
-        const token = require('crypto').randomUUID();
+        const token = crypto.randomUUID();
         registrationSessions.set(token, Date.now());
 
         // Clean up old tokens occasionally? Or just let them sit (map size is small)
