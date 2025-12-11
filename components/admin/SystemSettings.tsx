@@ -230,6 +230,35 @@ const SystemSettings = () => {
                                 </div>
                             </div>
                         )}
+
+                        {/* DELETE CONFIRMATION MODAL */}
+                        {keyToDelete && (
+                            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-in slide-in-from-top-2">
+                                <p className="text-sm font-bold text-red-900 mb-2">Authorize Deletion:</p>
+                                <p className="text-xs text-red-700 mb-3">Enter Admin PIN to permanently remove this credential.</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="password"
+                                        value={pinVal}
+                                        onChange={(e) => setPinVal(e.target.value)}
+                                        className="flex-1 px-4 py-2 border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+                                        placeholder="••••••"
+                                    />
+                                    <button
+                                        onClick={handleDeleteKey}
+                                        className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 whitespace-nowrap"
+                                    >
+                                        Confirm Delete
+                                    </button>
+                                    <button
+                                        onClick={() => setKeyToDelete(null)}
+                                        className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
