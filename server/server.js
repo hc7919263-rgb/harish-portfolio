@@ -357,9 +357,12 @@ app.post('/api/auth/login-verify', async (req, res) => {
     const authenticatorObj = {
         credentialID: passkey.id,
         credentialPublicKey: new Uint8Array(passkey.publicKey.data || passkey.publicKey),
-        counter: (passkey.counter !== undefined && passkey.counter !== null) ? passkey.counter : 0,
+        counter: Number(passkey.counter || 0),
         transports: passkey.transports,
     };
+    // Add aliases for compatibility with different usage (authenticator vs credential)
+    authenticatorObj.publicKey = authenticatorObj.credentialPublicKey;
+    authenticatorObj.id = authenticatorObj.credentialID;
 
     console.log("DEBUG: Login - Authenticator Object for Verify:", JSON.stringify(authenticatorObj, (k, v) => k === 'credentialPublicKey' ? '[Uint8Array]' : v, 2));
 
