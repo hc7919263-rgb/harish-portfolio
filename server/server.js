@@ -193,7 +193,7 @@ app.post('/api/auth/register-challenge', async (req, res) => {
         authenticatorSelection: {
             residentKey: 'preferred',
             userVerification: 'preferred',
-            authenticatorAttachment: 'cross-platform', // Allow Phone/PC
+            // authenticatorAttachment: 'cross-platform', <--- REMOVED to allow Windows Hello / TouchID (Platform)
         },
     });
 
