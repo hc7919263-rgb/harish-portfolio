@@ -354,9 +354,31 @@ app.post('/api/auth/login-verify', async (req, res) => {
 
     console.log("DEBUG: Login - Passkey Found:", JSON.stringify(passkey, null, 2));
 
+    console.log("DEBUG: Raw Public Key:", passkey.publicKey);
+
+    // Normalize Public Key
+    let pkUint8;
+    if (passkey.publicKey && passkey.publicKey.data) {
+        // It's a Mongoose-style Buffer object { type: 'Buffer', data: [...] }
+        pkUint8 = new Uint8Array(passkey.publicKey.data);
+    } else if (Buffer.isBuffer(passkey.publicKey)) {
+        pkUint8 = new Uint8Array(passkey.publicKey);
+    } else if (Array.isArray(passkey.publicKey)) {
+        pkUint8 = new Uint8Array(passkey.publicKey);
+    } else {
+        pkUint8 = new Uint8Array(passkey.publicKey); // Try direct casting
+    }
+
+    console.log("DEBUG: Normalized PK Length:", pkUint8.length);
+
+    if (pkUint8.length === 0) {
+        console.error("CRITICAL: Public Key is improper or empty!");
+        return res.status(500).json({ error: "Stored Passkey is corrupted (Empty Public Key). Please delete it." });
+    }
+
     const authenticatorObj = {
         credentialID: passkey.id,
-        credentialPublicKey: new Uint8Array(passkey.publicKey.data || passkey.publicKey),
+        credentialPublicKey: pkUint8,
         counter: Number(passkey.counter || 0),
         transports: passkey.transports,
     };
@@ -364,7 +386,8 @@ app.post('/api/auth/login-verify', async (req, res) => {
     authenticatorObj.publicKey = authenticatorObj.credentialPublicKey;
     authenticatorObj.id = authenticatorObj.credentialID;
 
-    console.log("DEBUG: Login - Authenticator Object for Verify:", JSON.stringify(authenticatorObj, (k, v) => k === 'credentialPublicKey' ? '[Uint8Array]' : v, 2));
+    // Do NOT hide the [Uint8Array] anymore, we need to know if it's empty
+    console.log("DEBUG: Login - Authenticator Object for Verify:", JSON.stringify(authenticatorObj, null, 2));
 
     const verifyOptions = {
         response: body,
