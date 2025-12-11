@@ -283,6 +283,15 @@ app.post('/api/auth/register-verify', async (req, res) => {
                 throw new Error("Registration failed: Missing Public Key");
             }
 
+            // --- Capture Device Metadata ---
+            const ua = req.get('User-Agent') || '';
+            let deviceType = 'Unknown Device';
+            if (/Windows/i.test(ua)) deviceType = 'Windows PC';
+            else if (/Macintosh/i.test(ua)) deviceType = 'Mac';
+            else if (/iPhone|iPad|iPod/i.test(ua)) deviceType = 'iOS Device';
+            else if (/Android/i.test(ua)) deviceType = 'Android Device';
+            else if (/Linux/i.test(ua)) deviceType = 'Linux';
+
             const newPasskey = {
                 id: credentialID,
                 // Ensure it's a Buffer 
@@ -291,6 +300,8 @@ app.post('/api/auth/register-verify', async (req, res) => {
                     : Buffer.from(credentialPublicKey),
                 counter: counter,
                 transports: body.response.transports,
+                deviceType, // Save inferred device label
+                created: Date.now()
             };
 
             // Save to DB
