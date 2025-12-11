@@ -161,18 +161,14 @@ let otpStore = new Map(); // Store { email: { code, expires } }
 
 // Global Transporter (Reuse connection pool)
 // Global Transporter (Reuse connection pool)
+// Global Transporter
+// Use 'service: gmail' which automatically configures the correct settings.
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587, // Use 587 for STARTTLS (often more reliable on cloud hosts than 465)
-    secure: false, // Must be false for port 587
+    service: 'gmail',
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
-    },
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    connectionTimeout: 30000 // Increase timeout to 30 seconds
+    }
 });
 
 // Verify connection once on startup
