@@ -198,13 +198,49 @@ app.post('/api/send-otp', async (req, res) => {
     const key = email || 'admin';
     otpStore.set(key, { code: otpCode, expires });
 
-    // RETURN OTP to client so Client can send the email via EmailJS
-    // This bypasses server-side SMTP blocking issues.
-    res.json({
-        success: true,
-        message: 'OTP Generated',
-        otpCode: otpCode // <--- Sending to client to email it
-    });
+    // SECURE IMPLEMENTATION:
+    // Send email from SERVER via EmailJS REST API (Port 443).
+    // This keeps otpCode secret and bypasses SMTP port blocking.
+
+    const serviceId = process.env.VITE_ADMIN_SERVICE_ID;
+    const templateId = process.env.VITE_ADMIN_TEMPLATE_ID;
+    const publicKey = process.env.VITE_ADMIN_PUBLIC_KEY;
+
+    try {
+        const emailResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Nodejs/Server'
+            },
+            body: JSON.stringify({
+                service_id: serviceId,
+                template_id: templateId,
+                user_id: publicKey,
+                template_params: {
+                    to_name: "Admin",
+                    otp_code: otpCode,
+                    message: "Here is your secure OTP for login."
+                }
+            })
+        });
+
+        if (emailResponse.ok) {
+            console.log("✅ Secure Email Sent via EmailJS API");
+            res.json({ success: true, message: 'OTP sent securely' });
+        } else {
+            const errText = await emailResponse.text();
+            console.error("❌ EmailJS API Error:", errText);
+            throw new Error(`EmailJS Error: ${errText}`);
+        }
+    } catch (error) {
+        console.error("Detailed Email Error:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send secure email',
+            error: error.message
+        });
+    }
 });
 
 app.post('/api/verify-otp', (req, res) => {
