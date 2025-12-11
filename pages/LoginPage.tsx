@@ -19,6 +19,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
 
     // Security Token for Registration
     const [regToken, setRegToken] = useState<string | null>(null);
+    const [hasKeys, setHasKeys] = useState(false);
 
     // Math State
     const [mathQ, setMathQ] = useState({ q: '', a: 0 });
@@ -181,6 +182,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
                     // Store token for registration
                     if (data.registrationToken) {
                         setRegToken(data.registrationToken);
+                    }
+                    if (data.passkeyCount !== undefined && data.passkeyCount > 0) {
+                        setHasKeys(true);
+                    } else {
+                        setHasKeys(false);
                     }
                 } else {
                     handleFail();
