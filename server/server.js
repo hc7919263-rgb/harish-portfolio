@@ -219,47 +219,62 @@ app.post('/api/auth/register-challenge', async (req, res) => {
 });
 
 // 2. REGISTER: Verify Response
+// 2. REGISTER: Verify Response
 app.post('/api/auth/register-verify', async (req, res) => {
-    const { body } = req;
-    const challenge = challengeStore.get('admin-user-id');
-
-    const rpID = req.hostname;
-
-    if (!challenge) return res.status(400).json({ error: 'No challenge found' });
-
-    let verification;
     try {
-        verification = await verifyRegistrationResponse({
-            response: body,
-            expectedChallenge: challenge,
-            expectedOrigin: origin,
-            expectedRPID: [rpID, 'localhost'], // Allow current host or localhost
-        });
-    } catch (error) {
-        console.error("WebAuthn Verification Failed:", error);
-        return res.status(400).json({ error: error.message });
-    }
+        const { body } = req;
+        const challenge = challengeStore.get('admin-user-id');
 
-    if (verification.verified && verification.registrationInfo) {
-        const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+        let rpID = req.hostname;
+        // Apply same fallback logic as register-challenge
+        if (!rpID.includes('localhost') && !rpID.includes('127.0.0.1')) {
+            rpID = 'harish-portfolio-3fqm.onrender.com';
+        }
 
-        const newPasskey = {
-            id: credentialID,
-            publicKey: Buffer.from(credentialPublicKey), // Store as Buffer/Binary
-            counter: counter,
-            transports: body.response.transports,
-        };
+        console.log("DEBUG: Verifying with RP ID:", rpID);
 
-        // Save to DB
-        const data = await readDb();
-        if (!data.adminPasskeys) data.adminPasskeys = [];
-        data.adminPasskeys.push(newPasskey);
-        await writeDb(data);
+        if (!challenge) {
+            console.error("DEBUG: No challenge found for admin-user-id");
+            return res.status(400).json({ error: 'No challenge found (Session expired?)' });
+        }
 
-        challengeStore.delete('admin-user-id');
-        res.json({ success: true });
-    } else {
-        res.status(400).json({ success: false, error: 'Verification failed' });
+        let verification;
+        try {
+            verification = await verifyRegistrationResponse({
+                response: body,
+                expectedChallenge: challenge,
+                expectedOrigin: origin,
+                expectedRPID: [rpID, 'localhost'],
+            });
+        } catch (error) {
+            console.error("WebAuthn Library Verify Failed:", error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        if (verification.verified && verification.registrationInfo) {
+            const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+
+            const newPasskey = {
+                id: credentialID,
+                publicKey: Buffer.from(credentialPublicKey), // Store as Buffer/Binary
+                counter: counter,
+                transports: body.response.transports,
+            };
+
+            // Save to DB
+            const data = await readDb();
+            if (!data.adminPasskeys) data.adminPasskeys = [];
+            data.adminPasskeys.push(newPasskey);
+            await writeDb(data);
+
+            challengeStore.delete('admin-user-id');
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ success: false, error: 'Verification failed' });
+        }
+    } catch (e) {
+        console.error("CRITICAL: register-verify crashed:", e);
+        res.status(500).json({ error: e.message, stack: e.stack });
     }
 });
 
