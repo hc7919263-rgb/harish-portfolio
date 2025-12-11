@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Search, Save, Shield, Plus } from 'lucide-react';
+import { Settings, Search, Save, Shield, Plus, Trash2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { startRegistration } from '@simplewebauthn/browser';
 
@@ -51,6 +51,7 @@ const SystemSettings = () => {
                 setMsg('Success: New Passkey Added!');
                 setIsAddingKey(false);
                 setPinVal('');
+                fetchKeys(); // Refresh list
             } else {
                 throw new Error(verification.error);
             }
@@ -60,6 +61,50 @@ const SystemSettings = () => {
         }
         setTimeout(() => setMsg(''), 3000);
     };
+
+    // --- List & Delete Keys ---
+    const [keys, setKeys] = useState<any[]>([]);
+    const [keyToDelete, setKeyToDelete] = useState<string | null>(null);
+
+    const fetchKeys = async () => {
+        try {
+            const res = await fetch('/api/auth/passkeys');
+            const data = await res.json();
+            if (data.success) {
+                setKeys(data.keys || []);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        fetchKeys();
+    }, []);
+
+    const handleDeleteKey = async () => {
+        if (!keyToDelete) return;
+        try {
+            const res = await fetch('/api/auth/passkeys', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: keyToDelete, pin: pinVal }) // Re-use pinVal
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg('Success: Key Deleted');
+                setKeyToDelete(null);
+                setPinVal('');
+                fetchKeys();
+            } else {
+                setMsg('Error: ' + (data.error || 'Delete failed'));
+            }
+        } catch (e) {
+            setMsg('Error: Connection Failed');
+        }
+        setTimeout(() => setMsg(''), 3000);
+    };
+
 
     useEffect(() => {
         if (meta) {
