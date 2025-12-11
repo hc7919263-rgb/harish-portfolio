@@ -296,15 +296,26 @@ app.post('/api/auth/register-verify', async (req, res) => {
 });
 
 // 3. LOGIN: Generate Challenge
+// 3. LOGIN: Generate Challenge
 app.post('/api/auth/login-challenge', async (req, res) => {
-    const data = await readDb();
-    const existingPasskeys = data.adminPasskeys || [];
-
-    if (existingPasskeys.length === 0) {
-        return res.json({ success: false, message: 'No passkeys registered.' });
-    }
-
     try {
+        const data = await readDb();
+        const existingPasskeys = data.adminPasskeys || [];
+
+        console.log("DEBUG: Login - Found Passkeys in DB:", existingPasskeys.length);
+
+        if (existingPasskeys.length === 0) {
+            console.error("DEBUG: Login Failed - No passkeys found in DB");
+            return res.status(400).json({ success: false, message: 'No passkeys registered. Please register first.' });
+        }
+
+        let rpID = req.hostname;
+        // Apply same fallback logic as register
+        if (!rpID.includes('localhost') && !rpID.includes('127.0.0.1')) {
+            rpID = 'harish-portfolio-3fqm.onrender.com';
+        }
+        console.log("DEBUG: Login Challenge with RP ID:", rpID);
+
         const options = await generateAuthenticationOptions({
             rpID,
             allowCredentials: existingPasskeys.map(key => ({
@@ -317,6 +328,7 @@ app.post('/api/auth/login-challenge', async (req, res) => {
         challengeStore.set('admin-user', options.challenge);
         res.json(options);
     } catch (e) {
+        console.error("CRITICAL: login-challenge crashed:", e);
         res.status(500).json({ error: e.message });
     }
 });
