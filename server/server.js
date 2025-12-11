@@ -254,9 +254,18 @@ app.post('/api/auth/register-verify', async (req, res) => {
         if (verification.verified && verification.registrationInfo) {
             const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
 
+            // FIX: Ensure public key exists
+            if (!credentialPublicKey) {
+                console.error("CRITICAL: credentialPublicKey is missing from verification info!");
+                throw new Error("Registration failed: Missing Public Key");
+            }
+
             const newPasskey = {
                 id: credentialID,
-                publicKey: Buffer.from(credentialPublicKey), // Store as Buffer/Binary
+                // Ensure it's a Buffer 
+                publicKey: Buffer.isBuffer(credentialPublicKey)
+                    ? credentialPublicKey
+                    : Buffer.from(credentialPublicKey),
                 counter: counter,
                 transports: body.response.transports,
             };
