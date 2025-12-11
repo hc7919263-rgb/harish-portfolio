@@ -90,8 +90,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
                 throw new Error(verification.error || 'Verification failed');
             }
         } catch (e: any) {
-            console.error(e);
-            setError(e.name === 'NotAllowedError' ? 'Cancelled by user' : 'Registration failed');
+            console.error("Passkey Register Error:", e);
+            // Show detailed error
+            const errMsg = e.message || e.name || 'Registration failed';
+            setError(`Registration failed: ${errMsg}`);
         } finally {
             setIsLoading(false);
         }
@@ -130,8 +132,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
                 throw new Error('Authentication failed');
             }
         } catch (e: any) {
-            console.error(e);
-            setError(e.name === 'NotAllowedError' ? 'Cancelled by user' : 'Login failed');
+            console.error("Passkey Login Error:", e);
+            const errMsg = e.message || e.name || 'Login failed';
+            setError(`Login failed: ${errMsg}`);
         } finally {
             setIsLoading(false);
         }
