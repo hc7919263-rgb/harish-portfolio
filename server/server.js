@@ -388,21 +388,18 @@ app.post('/api/auth/login-verify', async (req, res) => {
             throw error; // Throw original
         }
     }
-} catch (error) {
-    console.error("Login Verify Error:", error);
-    return res.status(400).json({ error: error.message });
-}
 
-if (verification.verified) {
-    // Update counter
-    passkey.counter = verification.authenticationInfo.newCounter;
-    await writeDb(data);
 
-    challengeStore.delete('admin-user');
-    res.json({ success: true });
-} else {
-    res.status(400).json({ success: false });
-}
+    if (verification.verified) {
+        // Update counter
+        passkey.counter = verification.authenticationInfo.newCounter;
+        await writeDb(data);
+
+        challengeStore.delete('admin-user');
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ success: false });
+    }
 });
 // --- PIN Verification ---
 app.post('/api/verify-pin', (req, res) => {
