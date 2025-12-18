@@ -135,6 +135,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const saveToServer = (type: string, data: any) => {
+        console.log(`[DataContext] Saving ${type} to server...`, data);
         const token = sessionStorage.getItem('admin_session_token');
         const headers: any = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -143,7 +144,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             method: 'POST',
             headers,
             body: JSON.stringify({ type, data })
-        }).catch(err => console.error(`Failed to save ${type}:`, err));
+        })
+            .then(res => {
+                if (res.ok) console.log(`[DataContext] ${type} saved successfully`);
+                else console.error(`[DataContext] Failed to save ${type}:`, res.statusText);
+            })
+            .catch(err => console.error(`[DataContext] Failed to save ${type}:`, err));
     };
 
     // --- Projects Handlers ---

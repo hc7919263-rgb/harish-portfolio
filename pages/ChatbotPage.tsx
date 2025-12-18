@@ -23,49 +23,28 @@ const FAQItem: React.FC<{ faq: FAQ; onAsk: (q: string) => void }> = ({ faq, onAs
 };
 
 // 2. Project Card
-const ProjectCard: React.FC<{ project: Project }> = ({ project }) => (
+const ProjectCard: React.FC<{ project: any }> = ({ project }) => (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm my-2 max-w-sm">
-        {project.thumbnail && (
-            <div className="h-32 bg-gray-100 relative">
-                <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover" />
-            </div>
-        )}
         <div className="p-4">
             <h3 className="font-bold text-lg text-black">{project.title}</h3>
-            <div className="flex flex-wrap gap-1 my-2">
-                {project.tech.map((t, i) => (
-                    <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{t}</span>
-                ))}
-            </div>
-            <p className="text-sm text-gray-600 mb-2">{project.summary}</p>
-
-            {project.outcomes && (
-                <ul className="list-disc list-inside text-xs text-gray-500 mb-4 space-y-1">
-                    {project.outcomes.map((o, i) => (
-                        <li key={i}>{o}</li>
+            {project.skills && project.skills.length > 0 && (
+                <div className="flex flex-wrap gap-1 my-2">
+                    {project.skills.map((t: string, i: number) => (
+                        <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{t}</span>
                     ))}
-                </ul>
+                </div>
             )}
+            <p className="text-sm text-gray-600 mb-2">{project.description || project.summary}</p>
 
             <div className="flex gap-3 mt-3">
-                {project.githubUrl && (
+                {project.url && (
                     <a
-                        href={project.githubUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-sm font-semibold text-black hover:underline"
-                    >
-                        <GithubIcon className="w-4 h-4" /> Code
-                    </a>
-                )}
-                {project.liveUrl && (
-                    <a
-                        href={project.liveUrl}
+                        href={project.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
                     >
-                        <span>🚀</span> Live
+                        <span>🚀</span> View Project
                     </a>
                 )}
             </div>
@@ -79,7 +58,7 @@ interface Message {
     text: string;
     sender: 'user' | 'bot';
     timestamp: number;
-    projectData?: Project;
+    projectData?: any;
 }
 interface MessageProps {
     msg: Message;
@@ -91,7 +70,7 @@ const MessageBubble: React.FC<MessageProps> = ({ msg }) => {
     return (
         <div className={`flex mb-6 ${isBot ? 'justify-start' : 'justify-end'}`}>
             {isBot && (
-                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 mr-2 mt-1">
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 mr-2 mt-1 border border-gray-100 shadow-sm">
                     <img src="/assets/chatbot_icon.png" alt="Bot" className="w-full h-full object-cover" />
                 </div>
             )}
@@ -149,7 +128,7 @@ const InputBar: React.FC<InputBarProps> = ({ onSend }) => {
 // --- Main Page Component ---
 
 const ChatbotPage: React.FC = () => {
-    const { faqs } = useData();
+    const { faqs, projects } = useData();
     const [messages, setMessages] = useState<any[]>([]);
     const [isTyping, setIsTyping] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All'); // FAQ Filter State
@@ -171,7 +150,6 @@ const ChatbotPage: React.FC = () => {
 
 
     // Bot Logic
-    // Bot Logic
     const handleSend = (text: string) => {
         const userMsg: Message = { id: Date.now().toString(), text, sender: 'user', timestamp: Date.now() };
         setMessages(prev => [...prev, userMsg]);
@@ -180,26 +158,34 @@ const ChatbotPage: React.FC = () => {
         setTimeout(() => {
             const lowerText = text.toLowerCase();
             let botText = chatData.responses.unknown;
-            let projectData: Project | undefined;
+            let projectData: any | undefined;
 
             // 1. Check Greeting
-            // We check for these common greetings to be friendly
-            if (['hi', 'hello', 'hey', 'greetings'].some(g => lowerText.includes(g))) {
+            if (['hi', 'hello', 'hey', 'greetings', 'who are you', 'what is your name'].some(g => lowerText.includes(g))) {
                 botText = chatData.responses.greeting;
             }
             // 2. Check Projects
-            else if (lowerText.includes('project') || lowerText.includes('work') || lowerText.includes('portfolio')) {
-                const randomProject = chatData.projects[0]; // Just showing first for demo
-                botText = "Here is one of Harish's recent projects:"; // Third person
-                projectData = randomProject;
+            else if (lowerText.includes('project') || lowerText.includes('work') || lowerText.includes('portfolio') || lowerText.includes('creations')) {
+                if (projects && projects.length > 0) {
+                    const randomProject = projects[Math.floor(Math.random() * projects.length)];
+                    botText = `I found some of Harish's projects. Here is one called "${randomProject.title}":`;
+                    projectData = randomProject;
+                } else {
+                    botText = "Harish hasn't added any projects to the database yet, but you can check his GitHub for more!";
+                }
             }
             // 3. Contact
-            else if (lowerText.includes('contact') || lowerText.includes('hire') || lowerText.includes('email')) {
+            else if (lowerText.includes('contact') || lowerText.includes('hire') || lowerText.includes('email') || lowerText.includes('phone') || lowerText.includes('linkedin')) {
                 botText = chatData.responses.contact;
             }
-            // 4. FAQ Match
+            // 4. FAQ Match (Dynamic from Context)
             else {
-                const faqMatch = faqs.find(f => lowerText.includes(f.question.toLowerCase()) || f.question.toLowerCase().includes(lowerText));
+                const faqMatch = faqs.find(f =>
+                    lowerText.includes(f.question.toLowerCase()) ||
+                    f.question.toLowerCase().includes(lowerText) ||
+                    (f.tags && f.tags.some(t => lowerText.includes(t.toLowerCase())))
+                );
+
                 if (faqMatch) {
                     botText = faqMatch.answer;
                 }
