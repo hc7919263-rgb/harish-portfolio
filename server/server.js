@@ -660,7 +660,7 @@ app.listen(PORT, () => {
 
 // --- Keep-Alive Script (Prevent Render Cold Start) ---
 const url = `https://harish-portfolio-3fqm.onrender.com`;
-const interval = 14 * 60 * 1000; // 14 minutes (Render timeout is 15 mins)
+const interval = 30000; // 30 seconds
 
 function reloadWebsite() {
     axios
@@ -673,7 +673,4 @@ function reloadWebsite() {
         });
 }
 
-// Only run keep-alive in production to save local resources
-if (process.env.NODE_ENV === 'production') {
-    setInterval(reloadWebsite, interval);
-}
+setInterval(reloadWebsite, interval);
