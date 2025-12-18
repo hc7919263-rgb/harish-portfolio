@@ -66,6 +66,7 @@ interface DataContextType {
     skills: SkillsData;
     collaborations: Collaboration[];
     meta: any; // Added meta for generic data like resume timestamp
+    isLoading: boolean; // Added for performance tracking
     updateMeta: (key: string, value: any) => void;
 
     addProject: (project: Project) => void;
@@ -112,6 +113,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
     const [meta, setMeta] = useState<any>({});
+    const [isLoading, setIsLoading] = useState(true);
 
     // --- Persistence & Initial Load ---
     useEffect(() => {
@@ -124,8 +126,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (data.skills) setSkills(data.skills);
                 if (data.collaborations) setCollaborations(data.collaborations);
                 if (data.meta) setMeta(data.meta);
+                setIsLoading(false);
             })
-            .catch(err => console.error("Failed to load data from server:", err));
+            .catch(err => {
+                console.error("Failed to load data from server:", err);
+                setIsLoading(false);
+            });
     }, []);
 
     const saveToServer = (type: string, data: any) => {
@@ -319,6 +325,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             skills,
             collaborations,
             meta,
+            isLoading,
             updateMeta, // Added
             addProject, updateProject, deleteProject,
             addAcademic, updateAcademic, deleteAcademic,
