@@ -19,11 +19,24 @@ const PORT = 3001;
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
-    secure: true, // true for 465, false for other ports
+    secure: true, // SSL/TLS
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    tls: {
+        rejectUnauthorized: false // Allow self-signed certs if any
+    },
+    connectionTimeout: 10000, // 10 seconds
+});
+
+// Verify Transporter on Startup
+transporter.verify((error, success) => {
+    if (error) {
+        console.error("❌ SMTP Connection Error:", error.message);
+    } else {
+        console.log("✅ SMTP Server is ready to take our messages");
+    }
 });
 
 const sendSecurityAlert = async (type, req) => {
