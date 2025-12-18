@@ -23,9 +23,13 @@ const ResumeManager = () => {
             const base64 = reader.result as string;
 
             try {
+                const token = sessionStorage.getItem('admin_session_token');
+                const headers: any = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 const res = await fetch('/api/upload-resume', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({
                         fileData: base64,
                         fileName: file.name

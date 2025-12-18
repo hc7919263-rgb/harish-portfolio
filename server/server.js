@@ -26,14 +26,63 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use(cors());
 app.use(bodyParser.json());
 
-// Security Middleware (Simulated Firewall Headers)
+// --- Security Middleware & Hardening ---
 app.use((req, res, next) => {
+    // Stricter CSP
+    res.setHeader('Content-Security-Policy',
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.googletagmanager.com; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data: https: blob:; " +
+        "connect-src 'self' https://harish-portfolio-3fqm.onrender.com http://localhost:3001 http://localhost:3000;"
+    );
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     next();
 });
+
+// Simple In-Memory Rate Limiter
+const loginAttempts = new Map(); // { ip: { count, lastAttempt } }
+const rateLimit = (limit, windowMs) => (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+    const status = loginAttempts.get(ip) || { count: 0, lastAttempt: now };
+
+    if (now - status.lastAttempt > windowMs) {
+        status.count = 0;
+    }
+
+    if (status.count >= limit) {
+        return res.status(429).json({ error: "Too many attempts. Please try again later." });
+    }
+
+    status.count++;
+    status.lastAttempt = now;
+    loginAttempts.set(ip, status);
+    next();
+};
+
+// Authentication Middleware
+const requireAuth = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token || !registrationSessions.has(token)) {
+        return res.status(401).json({ error: "Unauthorized. Please log in first." });
+    }
+
+    // Check expiry
+    const ts = registrationSessions.get(token);
+    if (Date.now() - ts > 60 * 60 * 1000) { // Sessions last 1 hour
+        registrationSessions.delete(token);
+        return res.status(401).json({ error: "Session expired. Please log in again." });
+    }
+
+    next();
+};
 
 // Helper to read DB (From MongoDB)
 const readDb = async () => {
@@ -73,13 +122,19 @@ app.get('/api/data', async (req, res) => {
     res.json(data);
 });
 
-// Update Entire Section
-app.post('/api/save', async (req, res) => {
+// Update Entire Section (Protected)
+const ALLOWED_SECTIONS = ['projects', 'foundation', 'faqs', 'skills', 'collaborations', 'meta'];
+app.post('/api/save', requireAuth, async (req, res) => {
     const { type, data } = req.body;
+
+    // Prevention of NoSQL injection and unauthorized field access
+    if (!ALLOWED_SECTIONS.includes(type)) {
+        return res.status(400).json({ error: 'Invalid section type' });
+    }
 
     try {
         const updateQuery = {};
-        updateQuery[type] = data; // e.g. { projects: [...] }
+        updateQuery[type] = data;
 
         await PortfolioData.findByIdAndUpdate('main', updateQuery, { upsert: true });
         res.json({ success: true, message: `${type} updated` });
@@ -92,20 +147,18 @@ app.post('/api/save', async (req, res) => {
 // Increase limit for Base64 uploads
 app.use(bodyParser.json({ limit: '10mb' }));
 
-app.post('/api/upload-resume', async (req, res) => {
-    const { fileData, fileName } = req.body; // fileData is base64
+app.post('/api/upload-resume', requireAuth, async (req, res) => {
+    const { fileData } = req.body;
     if (!fileData) return res.status(400).json({ error: 'No data' });
 
     try {
-        // Decode Base64
         const base64Data = fileData.replace(/^data:([A-Za-z-+/]+);base64,/, '');
         const buffer = Buffer.from(base64Data, 'base64');
 
-        // Ensure public/assets exists
         const assetsDir = path.join(__dirname, '../public/assets');
         if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-        const filePath = path.join(assetsDir, 'resume.pdf'); // Standardize name
+        const filePath = path.join(assetsDir, 'resume.pdf');
         fs.writeFileSync(filePath, buffer);
 
         await PortfolioData.findByIdAndUpdate('main', { 'meta.resumeLastUpdated': new Date().toISOString() }, { upsert: true });
@@ -117,7 +170,7 @@ app.post('/api/upload-resume', async (req, res) => {
     }
 });
 
-app.post('/api/upload-profile', async (req, res) => {
+app.post('/api/upload-profile', requireAuth, async (req, res) => {
     const { fileData } = req.body;
     if (!fileData) return res.status(400).json({ error: 'No data' });
 
@@ -128,7 +181,7 @@ app.post('/api/upload-profile', async (req, res) => {
         const assetsDir = path.join(__dirname, '../public/assets');
         if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-        const filePath = path.join(assetsDir, 'profile.jpg'); // Overwrite profile.jpg
+        const filePath = path.join(assetsDir, 'profile.jpg');
         fs.writeFileSync(filePath, buffer);
 
         await PortfolioData.findByIdAndUpdate('main', { 'meta.profileLastUpdated': new Date().toISOString() }, { upsert: true });
@@ -361,7 +414,7 @@ app.post('/api/auth/login-challenge', async (req, res) => {
 });
 
 // 4. LOGIN: Verify Response
-app.post('/api/auth/login-verify', async (req, res) => {
+app.post('/api/auth/login-verify', rateLimit(5, 5 * 60 * 1000), async (req, res) => {
     const { body } = req;
     const challenge = challengeStore.get('admin-user');
     const rpID = req.hostname;
@@ -463,7 +516,7 @@ app.post('/api/auth/login-verify', async (req, res) => {
 });
 
 // --- Passkey Management Endpoints ---
-app.get('/api/auth/passkeys', async (req, res) => {
+app.get('/api/auth/passkeys', requireAuth, async (req, res) => {
     try {
         const data = await readDb();
         // Return sanitized list (no public keys?) - keeping it simple
@@ -481,7 +534,7 @@ app.get('/api/auth/passkeys', async (req, res) => {
     }
 });
 
-app.delete('/api/auth/passkeys', async (req, res) => {
+app.delete('/api/auth/passkeys', requireAuth, async (req, res) => {
     const { id, pin } = req.body;
 
     // 1. Gate with PIN
@@ -508,7 +561,7 @@ app.delete('/api/auth/passkeys', async (req, res) => {
     }
 });
 // --- PIN Verification ---
-app.post('/api/verify-pin', async (req, res) => {
+app.post('/api/verify-pin', rateLimit(5, 5 * 60 * 1000), async (req, res) => {
     const { pin } = req.body;
     // Securely check PIN on server. 
     // Use env var or default to the user's specified PIN if env is missing.

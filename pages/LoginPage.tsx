@@ -182,6 +182,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate }) => 
                     // Store token for registration
                     if (data.registrationToken) {
                         setRegToken(data.registrationToken);
+                        sessionStorage.setItem('admin_session_token', data.registrationToken);
                     }
                     if (data.passkeyCount !== undefined && data.passkeyCount > 0) {
                         setHasKeys(true);

@@ -68,7 +68,11 @@ const SystemSettings = () => {
 
     const fetchKeys = async () => {
         try {
-            const res = await fetch('/api/auth/passkeys');
+            const token = sessionStorage.getItem('admin_session_token');
+            const headers: any = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch('/api/auth/passkeys', { headers });
             const data = await res.json();
             if (data.success) {
                 setKeys(data.keys || []);
@@ -85,9 +89,13 @@ const SystemSettings = () => {
     const handleDeleteKey = async () => {
         if (!keyToDelete) return;
         try {
+            const token = sessionStorage.getItem('admin_session_token');
+            const headers: any = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const res = await fetch('/api/auth/passkeys', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ id: keyToDelete, pin: pinVal }) // Re-use pinVal
             });
             const data = await res.json();

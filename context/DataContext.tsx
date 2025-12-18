@@ -135,9 +135,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const saveToServer = (type: string, data: any) => {
+        const token = sessionStorage.getItem('admin_session_token');
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         fetch('/api/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ type, data })
         }).catch(err => console.error(`Failed to save ${type}:`, err));
     };
