@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import 'dotenv/config'; // Load .env
 import bodyParser from 'body-parser';
 import fs from 'fs';
@@ -590,3 +591,20 @@ if (fs.existsSync(distPath)) {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+// --- Keep-Alive Script (Prevent Render Cold Start) ---
+const url = `https://harish-portfolio-3fqm.onrender.com`;
+const interval = 30000; // 30 seconds
+
+function reloadWebsite() {
+    axios
+        .get(url)
+        .then((response) => {
+            console.log("Website reloaded to prevent cold start");
+        })
+        .catch((error) => {
+            console.error(`Keep-alive Error : ${error.message}`);
+        });
+}
+
+setInterval(reloadWebsite, interval);

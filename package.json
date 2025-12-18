@@ -17,6 +17,7 @@
         "@simplewebauthn/server": "^13.2.2",
         "@types/canvas-confetti": "^1.9.0",
         "@types/react-google-recaptcha": "^2.1.9",
+        "axios": "^1.13.2",
         "body-parser": "^2.2.1",
         "canvas-confetti": "^1.9.4",
         "concurrently": "^9.2.1",
