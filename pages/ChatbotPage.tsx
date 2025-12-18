@@ -160,12 +160,13 @@ const ChatbotPage: React.FC = () => {
             let botText = chatData.responses.unknown;
             let projectData: any | undefined;
 
-            // 1. Check Greeting
-            if (['hi', 'hello', 'hey', 'greetings', 'who are you', 'what is your name'].some(g => lowerText.includes(g))) {
+            // 1. Check Greeting (Strict regex for word boundaries)
+            const greetingRegex = /\b(hi|hello|hey|greetings|who are you|what is your name)\b/i;
+            if (greetingRegex.test(lowerText)) {
                 botText = chatData.responses.greeting;
             }
             // 2. Check Projects
-            else if (lowerText.includes('project') || lowerText.includes('work') || lowerText.includes('portfolio') || lowerText.includes('creations')) {
+            else if (/\b(project|work|portfolio|creations)\b/i.test(lowerText)) {
                 if (projects && projects.length > 0) {
                     const randomProject = projects[Math.floor(Math.random() * projects.length)];
                     botText = `I found some of Harish's projects. Here is one called "${randomProject.title}":`;
@@ -175,16 +176,20 @@ const ChatbotPage: React.FC = () => {
                 }
             }
             // 3. Contact
-            else if (lowerText.includes('contact') || lowerText.includes('hire') || lowerText.includes('email') || lowerText.includes('phone') || lowerText.includes('linkedin')) {
+            else if (/\b(contact|hire|email|phone|linkedin)\b/i.test(lowerText)) {
                 botText = chatData.responses.contact;
             }
             // 4. FAQ Match (Dynamic from Context)
             else {
-                const faqMatch = faqs.find(f =>
-                    lowerText.includes(f.question.toLowerCase()) ||
-                    f.question.toLowerCase().includes(lowerText) ||
-                    (f.tags && f.tags.some(t => lowerText.includes(t.toLowerCase())))
-                );
+                const faqMatch = faqs.find(f => {
+                    const q = f.question.toLowerCase();
+                    // Try exact word match first
+                    const exactRegex = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                    if (exactRegex.test(lowerText)) return true;
+
+                    // Fallback to substring only if query is long enough or user input matches well
+                    return lowerText.includes(q) || q.includes(lowerText);
+                });
 
                 if (faqMatch) {
                     botText = faqMatch.answer;
