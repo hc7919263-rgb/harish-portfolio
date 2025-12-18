@@ -7,17 +7,13 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-// import nodemailer from 'nodemailer'; // Logic moved to service
-import { verifyTransporter, sendSecurityAlert } from './services/emailService.js';
+import nodemailer from 'nodemailer'; // Imported
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
-
-// --- Email Configuration (Refactored to services/emailService.js) ---
-verifyTransporter();
 // const DB_FILE = path.join(__dirname, 'db.json'); // Deprecated: Local DB
 import mongoose from 'mongoose';
 import { PortfolioData } from './models/PortfolioData.js';
@@ -467,39 +463,44 @@ app.post('/api/auth/login-verify', rateLimit(5, 5 * 60 * 1000), async (req, res)
         return res.status(500).json({ error: "Stored Passkey is corrupted (Empty Public Key). Please delete it." });
     }
 
-    // --- Improved WebAuthn Normalization ---
-    // credentialID must be a Uint8Array (base64url decoded)
-    let credIdUint8;
-    try {
-        // Simple Base64URL to Uint8Array conversion
-        const base64 = passkey.id.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = base64.length % 4;
-        const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
-        credIdUint8 = new Uint8Array(Buffer.from(padded, 'base64'));
-    } catch (e) {
-        console.error("ID Normalization Fail:", e.message);
-        credIdUint8 = new Uint8Array(Buffer.from(passkey.id)); // Fallback
-    }
-
-    const authenticator = {
-        credentialID: credIdUint8,
+    const authenticatorObj = {
+        credentialID: passkey.id,
         credentialPublicKey: pkUint8,
         counter: Number(passkey.counter || 0),
         transports: passkey.transports,
     };
+    // Add aliases for compatibility with different usage (authenticator vs credential)
+    authenticatorObj.publicKey = authenticatorObj.credentialPublicKey;
+    authenticatorObj.id = authenticatorObj.credentialID;
+
+    // Do NOT hide the [Uint8Array] anymore, we need to know if it's empty
+    console.log("DEBUG: Login - Authenticator Object for Verify:", JSON.stringify(authenticatorObj, null, 2));
+
+    const verifyOptions = {
+        response: body,
+        expectedChallenge: challenge,
+        expectedOrigin: origin,
+        expectedRPID: [expectedRPID, 'localhost'],
+        authenticator: authenticatorObj,
+    };
+
+    console.log("DEBUG: Verify Options Keys:", Object.keys(verifyOptions));
 
     let verification;
     try {
-        verification = await verifyAuthenticationResponse({
-            response: body,
-            expectedChallenge: challenge,
-            expectedOrigin: origin,
-            expectedRPID: [expectedRPID, 'localhost'],
-            authenticator,
-        });
-    } catch (error) {
-        console.error("Login Verify Error (V13):", error.message);
-        return res.status(400).json({ error: error.message });
+        try {
+            verification = await verifyAuthenticationResponse(verifyOptions);
+        } catch (error) {
+            console.error("Login Verify Error (First Attempt):", error.message);
+            // Fallback: try passing as 'credential' if library version mismatch
+            verification = await verifyAuthenticationResponse({
+                ...verifyOptions,
+                credential: authenticatorObj
+            });
+        }
+    } catch (finalError) {
+        console.error("Final Login Verify Error:", finalError);
+        return res.status(400).json({ error: finalError.message });
     }
 
     if (verification && verification.verified) {
@@ -509,9 +510,6 @@ app.post('/api/auth/login-verify', rateLimit(5, 5 * 60 * 1000), async (req, res)
 
         challengeStore.delete('admin-user');
         res.json({ success: true });
-
-        // Trigger Security Alert
-        sendSecurityAlert('Passkey (Biometric)', req);
     } else {
         res.status(400).json({ success: false, error: 'Verification failed' });
     }
@@ -588,9 +586,6 @@ app.post('/api/verify-pin', rateLimit(5, 5 * 60 * 1000), async (req, res) => {
         const data = await readDb();
         const passkeyCount = (data.adminPasskeys || []).length;
 
-        // Trigger Security Alert
-        sendSecurityAlert('PIN Entry', req);
-
         return res.json({ success: true, registrationToken: token, passkeyCount });
     } else {
         return res.json({ success: false, message: 'Invalid PIN' });
@@ -634,18 +629,6 @@ app.get('/api/analytics', async (req, res) => {
         totalVisitors: data.meta ? data.meta.totalVisitors : 0,
         resumeDownloads: data.meta ? (data.meta.resumeDownloads || 0) : 0
     });
-});
-
-app.post('/api/debug/test-email', async (req, res) => {
-    const { pin } = req.body;
-    if (pin !== process.env.ADMIN_PIN) return res.status(401).json({ error: 'Wrong PIN' });
-
-    try {
-        await sendSecurityAlert('TEST ALERT', req);
-        res.json({ success: true, message: 'Check logs for delivery status' });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
 });
 
 // --- Serve React Frontend (Production) ---
