@@ -7,7 +7,8 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer'; // Imported
+// import nodemailer from 'nodemailer'; // Logic moved to service
+import { verifyTransporter, sendSecurityAlert } from './services/emailService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,66 +16,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
-// --- Email Configuration ---
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL/TLS
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false // Allow self-signed certs if any
-    },
-    connectionTimeout: 10000, // 10 seconds
-});
-
-// Verify Transporter on Startup
-transporter.verify((error, success) => {
-    if (error) {
-        console.error("❌ SMTP Connection Error:", error.message);
-    } else {
-        console.log("✅ SMTP Server is ready to take our messages");
-    }
-});
-
-const sendSecurityAlert = async (type, req) => {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn("Security Alert: SMTP credentials missing. Email not sent.");
-        return;
-    }
-
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const ua = req.get('User-Agent') || 'Unknown Device';
-    const timestamp = new Date().toLocaleString();
-
-    const mailOptions = {
-        from: `"Security Alert" <${process.env.SMTP_USER}>`,
-        to: process.env.SMTP_USER, // Send alert to the admin email
-        subject: `⚠️ Admin Login Alert: ${type}`,
-        html: `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                <h2 style="color: #d32f2f;">Security Alert: Successful Admin Login</h2>
-                <p>A successful administrative login was detected on your portfolio website.</p>
-                <hr style="border: none; border-top: 1px solid #eee;" />
-                <p><strong>Method:</strong> ${type}</p>
-                <p><strong>IP Address:</strong> ${ip}</p>
-                <p><strong>Device Info:</strong> ${ua}</p>
-                <p><strong>Timestamp:</strong> ${timestamp}</p>
-                <hr style="border: none; border-top: 1px solid #eee;" />
-                <p style="font-size: 12px; color: #888;">If this wasn't you, please change your admin PIN and check your passkey configuration immediately.</p>
-            </div>
-        `,
-    };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ Security alert email sent for ${type} login.`);
-    } catch (error) {
-        console.error("❌ Failed to send security alert email:", error.message);
-    }
-};
+// --- Email Configuration (Refactored to services/emailService.js) ---
+verifyTransporter();
 // const DB_FILE = path.join(__dirname, 'db.json'); // Deprecated: Local DB
 import mongoose from 'mongoose';
 import { PortfolioData } from './models/PortfolioData.js';
