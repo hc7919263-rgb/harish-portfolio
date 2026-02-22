@@ -124,6 +124,11 @@ app.get('/api/data', async (req, res) => {
     res.json(data);
 });
 
+// Health Check Endpoint (Lightweight for Keep-Alive)
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Update Entire Section (Protected)
 const ALLOWED_SECTIONS = ['projects', 'foundation', 'faqs', 'skills', 'collaborations', 'meta'];
 app.post('/api/save', requireAuth, async (req, res) => {
@@ -660,20 +665,20 @@ app.listen(PORT, () => {
 
 // --- Keep-Alive Script (Prevent Render Cold Start) ---
 const urls = [
-    `https://harish-portfolio-3fqm.onrender.com`,
+    `https://harish-portfolio-3fqm.onrender.com/api/health`, // Hit health endpoint instead of root
     `https://orchestrix.onrender.com/healthz`
 ];
-const interval = 600000; // 10 minutes
+const interval = 300000; // 5 minutes (Render spins down after 15)
 
 function reloadWebsite() {
     urls.forEach((url) => {
         axios
             .get(url)
             .then((response) => {
-                console.log(`Website reloaded to prevent cold start: ${url}`);
+                console.log(`[Keep-Alive] Success: ${url} (${response.status})`);
             })
             .catch((error) => {
-                console.error(`Keep-alive Error for ${url}: ${error.message}`);
+                console.error(`[Keep-Alive] Error for ${url}: ${error.message}`);
             });
     });
 }

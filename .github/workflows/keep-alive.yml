@@ -1,0 +1,13 @@
+name: Keep-Alive Pinger
+
+on:
+  schedule:
+    - cron: '*/14 * * * *' # Every 14 minutes
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Portfolio Health
+        run: curl -s https://harish-portfolio-3fqm.onrender.com/api/health
